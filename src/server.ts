@@ -44,27 +44,27 @@ function toSocket(webSocket: ws, languageName: string): rpc.IWebSocket {
   return {
 
       send: content =>{
-          console.log(`Send message ${content}`)
+         // console.log(`Send message ${content}`)
           webSocket.send(content)
       },
 
       onMessage: cb => webSocket.onmessage = event => {
           let updatedData ='{"jsonrpc":"2.0","method":"workspace/didChangeConfiguration","params":{"settings":{"python":{"linting":{"enabled":true},"analysis":{"errors":["undefined-variable"],"warnings":["unknown-parameter-name"],"information":["unresolved-import"],"disabled":["too-many-function-arguments","parameter-missing"]}}}}}'
           let messageData = event.data
-          console.log(`Receive message ${languageName} ${messageData}`)
+          //console.log(`Receive message ${languageName} ${messageData}`)
           parseJsonAsync(messageData.toString()).then(
               jsonData => {
                   if(jsonData['method']=='workspace/didChangeConfiguration' && (languageName=='python' || languageName=='python3')){
                       messageData = updatedData
+                      console.log(`updated event data ${messageData}`)
                   }
-                  console.log(`updated event data ${messageData}`)
               })
 
           cb(messageData)
       },
       onError: cb => webSocket.onerror = event => {
           if ('message' in event) {
-              console.log(`Receive message ${event}`)
+             // console.log(`Receive message ${event}`)
               cb((event as any).message)
           }
       },
