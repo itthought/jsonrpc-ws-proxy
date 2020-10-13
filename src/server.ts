@@ -38,12 +38,33 @@ const wss : ws.Server = new ws.Server({
   console.log(`Listening to http and ws requests on ${serverPort}`);
 });
 
-function toSocket(webSocket: ws): rpc.IWebSocket {
+function toSocket(webSocket: ws, languageName: string): rpc.IWebSocket {
+
+
   return {
-      send: content => webSocket.send(content),
-      onMessage: cb => webSocket.onmessage = event => cb(event.data),
+
+      send: content =>{
+          console.log(`Send message ${content}`)
+          webSocket.send(content)
+      },
+
+      onMessage: cb => webSocket.onmessage = event => {
+          let updatedData ='{"jsonrpc":"2.0","method":"workspace/didChangeConfiguration","params":{"settings":{"python":{"linting":{"enabled":true}}}}}'
+          let messageData = event.data
+          console.log(`Receive message ${languageName} ${messageData}`)
+          parseJsonAsync(messageData.toString()).then(
+              jsonData => {
+                  if(jsonData['method']=='workspace/didChangeConfiguration' && (languageName=='ts' || languageName=='python3')){
+                      messageData = updatedData
+                  }
+                  console.log(`updated event data ${messageData}`)
+              })
+
+          cb(messageData)
+      },
       onError: cb => webSocket.onerror = event => {
           if ('message' in event) {
+              console.log(`Receive message ${event}`)
               cb((event as any).message)
           }
       },
@@ -52,12 +73,21 @@ function toSocket(webSocket: ws): rpc.IWebSocket {
   }
 }
 
+const parseJsonAsync = (jsonString) => {
+    return new Promise(resolve => {
+        setTimeout(() => {
+            resolve(JSON.parse(jsonString))
+        })
+    })
+}
+
 wss.on('connection', (client : ws, request : http.IncomingMessage) => {
   let langServer : string[];
-
+  let langKey: string = '';
   Object.keys(languageServers).forEach((key) => {
     if (request.url === '/' + key) {
       langServer = languageServers[key];
+        langKey = key
     }
   });
   if (!langServer || !langServer.length) {
@@ -67,7 +97,7 @@ wss.on('connection', (client : ws, request : http.IncomingMessage) => {
   }
 
   let localConnection = rpcServer.createServerProcess('Example', langServer[0], langServer.slice(1));
-  let socket : rpc.IWebSocket = toSocket(client);
+  let socket : rpc.IWebSocket = toSocket(client, langKey);
   let connection = rpcServer.createWebSocketConnection(socket);
   rpcServer.forward(connection, localConnection);
   console.log(`Forwarding new client`);
