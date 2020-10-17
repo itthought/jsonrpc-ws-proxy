@@ -8,7 +8,7 @@ import * as yaml from 'js-yaml';
 import * as ws from 'ws';
 import * as rpc from '@sourcegraph/vscode-ws-jsonrpc';
 import * as rpcServer from '@sourcegraph/vscode-ws-jsonrpc/lib/server';
-
+const URL = require('url');
 let argv = parseArgs(process.argv.slice(2));
 
 if (argv.help || !argv.languageServers) {
@@ -40,7 +40,6 @@ const wss : ws.Server = new ws.Server({
 
 function toSocket(webSocket: ws, languageName: string): rpc.IWebSocket {
 
-
   return {
 
       send: content =>{
@@ -49,7 +48,8 @@ function toSocket(webSocket: ws, languageName: string): rpc.IWebSocket {
       },
 
       onMessage: cb => webSocket.onmessage = event => {
-          let updatedData ='{"jsonrpc":"2.0","method":"workspace/didChangeConfiguration","params":{"settings":{"python":{"linting":{"enabled":true},"analysis":{"errors":["undefined-variable"],"warnings":["unknown-parameter-name"],"information":["unresolved-import"],"disabled":["too-many-function-arguments","parameter-missing"]}}}}}'
+          cb(event.data)
+          /*let updatedData ='{"jsonrpc":"2.0","method":"workspace/didChangeConfiguration","params":{"settings":{"python":{"linting":{"enabled":true},"analysis":{"errors":["undefined-variable"],"warnings":["unknown-parameter-name"],"information":["unresolved-import"],"disabled":["too-many-function-arguments","parameter-missing"]}}}}}'
           let messageData = event.data
           //console.log(`Receive message ${languageName} ${messageData}`)
           parseJsonAsync(messageData.toString()).then(
@@ -60,7 +60,7 @@ function toSocket(webSocket: ws, languageName: string): rpc.IWebSocket {
                   }
               })
 
-          cb(messageData)
+          cb(messageData)*/
       },
       onError: cb => webSocket.onerror = event => {
           if ('message' in event) {
@@ -84,19 +84,37 @@ const parseJsonAsync = (jsonString) => {
 wss.on('connection', (client : ws, request : http.IncomingMessage) => {
   let langServer : string[];
   let langKey: string = '';
+  var queryData = URL.parse(request.url, true).query;
+  var userFilePath = queryData.uuid || '';
+  console.log(queryData);
+  var uri = URL.parse(request.url);
+  console.log(uri.pathname)
   Object.keys(languageServers).forEach((key) => {
-    if (request.url === '/' + key) {
+    if (uri.pathname === '/' + key) {
       langServer = languageServers[key];
         langKey = key
     }
   });
+
   if (!langServer || !langServer.length) {
-    console.error('Invalid language server', request.url);
+    console.error('Invalid language server', uri.pathname);
     client.close();
     return;
   }
+  if (userFilePath!='') {
+        fs.mkdir(userFilePath,
+            { recursive: true }, (err) => {
+                if (err) {
+                    return console.error(err);
+                }
+                console.log('Directory created successfully!');
+            });
+    }
 
-  let localConnection = rpcServer.createServerProcess('Example', langServer[0], langServer.slice(1));
+  console.log(langServer[0]);
+  const commandStr = 'cd '+userFilePath +' && '
+  console.log(langServer.slice(1));
+  let localConnection = rpcServer.createServerProcess(langKey.toUpperCase() +' Server ', commandStr + langServer[0], langServer.slice(1));
   let socket : rpc.IWebSocket = toSocket(client, langKey);
   let connection = rpcServer.createWebSocketConnection(socket);
   rpcServer.forward(connection, localConnection);
@@ -104,5 +122,14 @@ wss.on('connection', (client : ws, request : http.IncomingMessage) => {
   socket.onClose((code, reason) => {
     console.log('Client closed', reason);
     localConnection.dispose();
+    //TODO removing temp folder
+      if (userFilePath!='') {
+          try {
+              fs.rmdirSync(userFilePath);
+              console.log(`${userFilePath} is deleted!`);
+          } catch (err) {
+              console.error(`Error while deleting ${userFilePath}.`);
+          }
+      }
   });
 });

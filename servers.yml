@@ -5,3 +5,5 @@ langservers:
         ts:
          - typescript-language-server
          - --stdio
+        java:
+        - /home/ubuntu/java_langserver/java_server.sh
