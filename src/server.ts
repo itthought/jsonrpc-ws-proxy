@@ -30,10 +30,11 @@ try {
   console.error(e);
   process.exit(1);
 }
-/*interface ExtWebSocket extends WebSocket {
+
+interface ExtWebSocket extends WebSocket {
     isAlive: boolean;
     pingInterval: Number;
-}*/
+}
 
 const wss : ws.Server = new ws.Server({
   port: serverPort,
@@ -42,6 +43,7 @@ const wss : ws.Server = new ws.Server({
 }, () => {
   console.log(`Listening to http and ws requests on ${serverPort}`);
 });
+
 
 function keepAliveSockets(wss){
     setTimeout(wsSet => { wsSet.forEach(ws => ws.isAlive ? (ws.isAlive = false, ws.ping("", false))
@@ -96,8 +98,13 @@ const parseJsonAsync = (jsonString) => {
     })
 }
 
+function pingpong(ws) {
+    console.log(ws.id+' send a ping');
+    ws.ping('coucou',{},true);
+} // end of pingpong
 
 wss.on('connection', (client : ws, request : http.IncomingMessage) => {
+
   let langServer : string[];
   let langKey: string = '';
   var queryData = URL.parse(request.url, true).query;
@@ -141,7 +148,8 @@ wss.on('connection', (client : ws, request : http.IncomingMessage) => {
 
   console.log(langServer[0]);
   console.log(langServer.slice(1));
-  let localConnection = rpcServer.createServerProcess(langKey.toUpperCase() +' Server ',  langServer[0], langServer.slice(1),{cwd: userFilePath});
+
+  let localConnection = rpcServer.createServerProcess(langKey.toUpperCase() +' Server ',  langServer[0], langServer.slice(1),{cwd: '/tmp' + userFilePath});
   let socket : rpc.IWebSocket = toSocket(client, langKey);
   let connection = rpcServer.createWebSocketConnection(socket);
   rpcServer.forward(connection, localConnection);
@@ -159,5 +167,9 @@ wss.on('connection', (client : ws, request : http.IncomingMessage) => {
           }
       }
   });
+
+    this.on('pong',function(mess) { console.log(this.id+' receive a pong : '+mess); });
+
+    this.timer=setInterval(function(){pingpong(this);},5000);
 
 });
