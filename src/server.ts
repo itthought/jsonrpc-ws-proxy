@@ -30,13 +30,28 @@ try {
   console.error(e);
   process.exit(1);
 }
+/*interface ExtWebSocket extends WebSocket {
+    isAlive: boolean;
+    pingInterval: Number;
+}*/
 
 const wss : ws.Server = new ws.Server({
   port: serverPort,
-  perMessageDeflate: false
+  perMessageDeflate: false,
+  clientTracking: true
 }, () => {
   console.log(`Listening to http and ws requests on ${serverPort}`);
 });
+
+function keepAliveSockets(wss){
+    setTimeout(wsSet => { wsSet.forEach(ws => ws.isAlive ? (ws.isAlive = false, ws.ping("", false))
+        : ws.terminate());
+        keepAliveSockets(wss);
+    }, 10000, wss.clients);
+}
+
+keepAliveSockets(wss);
+
 
 function toSocket(webSocket: ws, languageName: string): rpc.IWebSocket {
 
@@ -81,11 +96,13 @@ const parseJsonAsync = (jsonString) => {
     })
 }
 
+
 wss.on('connection', (client : ws, request : http.IncomingMessage) => {
   let langServer : string[];
   let langKey: string = '';
   var queryData = URL.parse(request.url, true).query;
   var userFilePath = queryData.uuid || '';
+  var mainfile = queryData.main || '';
   console.log(queryData);
   var uri = URL.parse(request.url);
   console.log(uri.pathname)
@@ -101,20 +118,22 @@ wss.on('connection', (client : ws, request : http.IncomingMessage) => {
     client.close();
     return;
   }
-  if (userFilePath!='') {
-        fs.mkdir(userFilePath,
+    var filePath = '/tmp/'+userFilePath
+    if (userFilePath!='') {
+        fs.mkdir(filePath,
             { recursive: true }, (err) => {
                 if (err) {
                     return console.error(err);
                 }
                 console.log('Directory created successfully!');
             });
+
+      fs.closeSync(fs.openSync(filePath+'/'+mainfile, 'w'))
     }
 
   console.log(langServer[0]);
-  const commandStr = 'cd '+userFilePath +' && '
   console.log(langServer.slice(1));
-  let localConnection = rpcServer.createServerProcess(langKey.toUpperCase() +' Server ', commandStr + langServer[0], langServer.slice(1));
+  let localConnection = rpcServer.createServerProcess(langKey.toUpperCase() +' Server ',  langServer[0], langServer.slice(1),{cwd: userFilePath});
   let socket : rpc.IWebSocket = toSocket(client, langKey);
   let connection = rpcServer.createWebSocketConnection(socket);
   rpcServer.forward(connection, localConnection);
@@ -125,11 +144,12 @@ wss.on('connection', (client : ws, request : http.IncomingMessage) => {
     //TODO removing temp folder
       if (userFilePath!='') {
           try {
-              fs.rmdirSync(userFilePath);
-              console.log(`${userFilePath} is deleted!`);
+              fs.rmdirSync(filePath);
+              console.log(`${filePath} is deleted!`);
           } catch (err) {
-              console.error(`Error while deleting ${userFilePath}.`);
+              console.error(`Error while deleting ${filePath}.`);
           }
       }
   });
+
 });
