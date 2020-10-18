@@ -128,7 +128,15 @@ wss.on('connection', (client : ws, request : http.IncomingMessage) => {
                 console.log('Directory created successfully!');
             });
 
-      fs.closeSync(fs.openSync(filePath+'/'+mainfile, 'w'))
+    }
+
+    if(mainfile!=''){
+        try {
+            fs.closeSync(fs.openSync(filePath+'/'+mainfile, 'w'))
+            console.log(`${filePath+'/'+mainfile} file created!`);
+        } catch (err) {
+            console.error(`Error while creating file ${filePath+'/'+mainfile}.`);
+        }
     }
 
   console.log(langServer[0]);
