@@ -31,10 +31,6 @@ try {
   process.exit(1);
 }
 
-interface ExtWebSocket extends WebSocket {
-    isAlive: boolean;
-    pingInterval: Number;
-}
 
 const wss : ws.Server = new ws.Server({
   port: serverPort,
@@ -43,16 +39,6 @@ const wss : ws.Server = new ws.Server({
 }, () => {
   console.log(`Listening to http and ws requests on ${serverPort}`);
 });
-
-
-function keepAliveSockets(wss){
-    setTimeout(wsSet => { wsSet.forEach(ws => ws.isAlive ? (ws.isAlive = false, ws.ping("", false))
-        : ws.terminate());
-        keepAliveSockets(wss);
-    }, 10000, wss.clients);
-}
-
-keepAliveSockets(wss);
 
 
 function toSocket(webSocket: ws, languageName: string): rpc.IWebSocket {
@@ -87,6 +73,7 @@ function toSocket(webSocket: ws, languageName: string): rpc.IWebSocket {
       },
       onClose: cb => webSocket.onclose = event => cb(event.code, event.reason),
       dispose: () => webSocket.close()
+
   }
 }
 
@@ -98,10 +85,6 @@ const parseJsonAsync = (jsonString) => {
     })
 }
 
-function pingpong(ws) {
-    console.log(ws.id+' send a ping');
-    ws.ping('coucou',{},true);
-} // end of pingpong
 
 wss.on('connection', (client : ws, request : http.IncomingMessage) => {
 
@@ -167,9 +150,5 @@ wss.on('connection', (client : ws, request : http.IncomingMessage) => {
           }
       }
   });
-
-    this.on('pong',function(mess) { console.log(this.id+' receive a pong : '+mess); });
-
-    this.timer=setInterval(function(){pingpong(this);},5000);
 
 });
