@@ -116,23 +116,22 @@ wss.on('connection', (client : ws, request : http.IncomingMessage) => {
                     return console.error(err);
                 }
                 console.log('Directory created successfully!');
+                if(mainfile!=''){
+                    try {
+                        fs.closeSync(fs.openSync(filePath+'/'+mainfile, 'w'))
+                        console.log(`${filePath+'/'+mainfile} file created!`);
+                    } catch (err) {
+                        console.error(`Error while creating file ${filePath+'/'+mainfile}.`);
+                    }
+                }
             });
 
-    }
-
-    if(mainfile!=''){
-        try {
-            fs.closeSync(fs.openSync(filePath+'/'+mainfile, 'w'))
-            console.log(`${filePath+'/'+mainfile} file created!`);
-        } catch (err) {
-            console.error(`Error while creating file ${filePath+'/'+mainfile}.`);
-        }
     }
 
   console.log(langServer[0]);
   console.log(langServer.slice(1));
 
-  let localConnection = rpcServer.createServerProcess(langKey.toUpperCase() +' Server ',  langServer[0], langServer.slice(1),{cwd: '/tmp' + userFilePath});
+  let localConnection = rpcServer.createServerProcess(langKey.toUpperCase() +' Server ',  langServer[0], langServer.slice(1),{cwd: '/tmp/' + userFilePath});
   let socket : rpc.IWebSocket = toSocket(client, langKey);
   let connection = rpcServer.createWebSocketConnection(socket);
   rpcServer.forward(connection, localConnection);
