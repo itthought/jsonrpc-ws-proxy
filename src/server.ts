@@ -2,7 +2,7 @@
 
 import * as http from 'http';
 import * as fs from 'fs';
-
+const path = require('path');
 import * as parseArgs from 'minimist';
 import * as yaml from 'js-yaml';
 import * as ws from 'ws';
@@ -10,7 +10,7 @@ import * as rpc from '@sourcegraph/vscode-ws-jsonrpc';
 import * as rpcServer from '@sourcegraph/vscode-ws-jsonrpc/lib/server';
 const URL = require('url');
 let argv = parseArgs(process.argv.slice(2));
-
+const basePath = '/home/ubuntu/demo';
 if (argv.help || !argv.languageServers) {
   console.log(`Usage: server.js --port 3000 --languageServers config.yml`);
   process.exit(1);
@@ -108,20 +108,20 @@ wss.on('connection', (client : ws, request : http.IncomingMessage) => {
     client.close();
     return;
   }
-    var filePath = '/tmp/'+userFilePath
+
     if (userFilePath!='') {
-        fs.mkdir(filePath,
+        fs.mkdir(path.join(basePath,langKey, userFilePath),
             { recursive: true }, (err) => {
                 if (err) {
                     return console.error(err);
                 }
-                console.log('Directory created successfully!');
+                console.log(path.join(basePath,langKey, userFilePath) +' Directory created successfully!');
                 if(mainfile!=''){
                     try {
-                        fs.closeSync(fs.openSync(filePath+'/'+mainfile, 'w'))
-                        console.log(`${filePath+'/'+mainfile} file created!`);
+                        fs.closeSync(fs.openSync(path.join(basePath,langKey, userFilePath, mainfile), 'w'))
+                        console.log(`${path.join(basePath,langKey, userFilePath, mainfile)} file created!`);
                     } catch (err) {
-                        console.error(`Error while creating file ${filePath+'/'+mainfile}.`);
+                        console.error(`Error while creating file ${path.join(basePath,langKey, userFilePath, mainfile)}.`);
                     }
                 }
             });
@@ -131,7 +131,7 @@ wss.on('connection', (client : ws, request : http.IncomingMessage) => {
   console.log(langServer[0]);
   console.log(langServer.slice(1));
 
-  let localConnection = rpcServer.createServerProcess(langKey.toUpperCase() +' Server ',  langServer[0], langServer.slice(1),{cwd: '/tmp/' + userFilePath});
+  let localConnection = rpcServer.createServerProcess(langKey.toUpperCase() +' Server ',  langServer[0], langServer.slice(1),{cwd: path.join(basePath,langKey, userFilePath)});
   let socket : rpc.IWebSocket = toSocket(client, langKey);
   let connection = rpcServer.createWebSocketConnection(socket);
   rpcServer.forward(connection, localConnection);
@@ -142,10 +142,10 @@ wss.on('connection', (client : ws, request : http.IncomingMessage) => {
     //TODO removing temp folder
       if (userFilePath!='') {
           try {
-              fs.rmdirSync(filePath);
-              console.log(`${filePath} is deleted!`);
+              fs.rmdirSync(path.join(basePath,langKey, userFilePath));
+              console.log(`${path.join(basePath,langKey, userFilePath)} is deleted!`);
           } catch (err) {
-              console.error(`Error while deleting ${filePath}.`);
+              console.error(`Error while deleting ${path.join(basePath,langKey, userFilePath)}.`);
           }
       }
   });
