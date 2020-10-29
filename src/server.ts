@@ -11,6 +11,8 @@ import * as rpcServer from '@sourcegraph/vscode-ws-jsonrpc/lib/server';
 const URL = require('url');
 let argv = parseArgs(process.argv.slice(2));
 const basePath = '/home/ubuntu/demo';
+const { spawn } = require("child_process");
+
 if (argv.help || !argv.languageServers) {
   console.log(`Usage: server.js --port 3000 --languageServers config.yml`);
   process.exit(1);
@@ -122,6 +124,25 @@ wss.on('connection', (client : ws, request : http.IncomingMessage) => {
                         console.log(`${path.join(basePath,langKey, userFilePath, mainfile)} file created!`);
                     } catch (err) {
                         console.error(`Error while creating file ${path.join(basePath,langKey, userFilePath, mainfile)}.`);
+                    }
+                    if(langKey=='go'){
+                        const ls = spawn("go", ["mod","init"]);
+
+                        ls.stdout.on("data", data => {
+                            console.log(`stdout: ${data}`);
+                        });
+
+                        ls.stderr.on("data", data => {
+                            console.log(`stderr: ${data}`);
+                        });
+
+                        ls.on('error', (error) => {
+                            console.log(`error: ${error.message}`);
+                        });
+
+                        ls.on("close", code => {
+                            console.log(`child process exited with code ${code}`);
+                        });
                     }
                 }
             });
